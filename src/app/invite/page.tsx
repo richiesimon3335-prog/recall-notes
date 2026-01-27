@@ -20,7 +20,7 @@ export default async function InvitePage({
 
   async function submit(formData: FormData) {
     "use server";
-    const code = String(formData.get("code") ?? "");
+    const code = String(formData.get("invite") ?? "");
 
     const res = await validateInviteCode(code);
     if (!res.ok) {
@@ -43,7 +43,7 @@ export default async function InvitePage({
 
       <Card className="p-4">
         <form action={submit} className="space-y-3">
-          <Input name="code" placeholder="例如：AB9K-3FQ2" required />
+          <Input name="invite" placeholder="例如：AB9K-3FQ2" required />
           <Button type="submit">Continue</Button>
         </form>
       </Card>

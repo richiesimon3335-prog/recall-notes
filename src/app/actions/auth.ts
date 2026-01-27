@@ -8,6 +8,14 @@ function enc(msg: string) {
   return encodeURIComponent(msg);
 }
 
+function loginUrl(params: Record<string, string | undefined>) {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== "")
+    .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
+    .join("&");
+  return qs ? `/login?${qs}` : "/login";
+}
+
 /**
  * Sign in with email + password
  * - success: redirect to /books
@@ -18,77 +26,79 @@ export async function signInWithEmail(formData: FormData) {
   const password = String(formData.get("password") || "");
 
   if (!email || !password) {
-    redirect(`/login?error=${enc("请输入 email 和 password")}`);
+    redirect(loginUrl({ error: "Please enter email and password." }));
   }
 
   const supabase = await createSupabaseServer();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/login?error=${enc(error.message)}`);
+    // 这里显示 Supabase 返回的信息，例如 Invalid login credentials
+    redirect(loginUrl({ error: error.message }));
   }
 
   redirect("/books");
 }
 
 /**
- * Sign up with email + password
+ * Sign up with email + password + invite code
  * - success (email confirmation OFF): redirect to /books
- * - success (email confirmation ON):  redirect back to /login with a friendly message
- * - error:                            redirect back to /login?error=...
+ * - success (email confirmation ON):  redirect back to /login?success=...
+ * - error:                            redirect back to /login?error=... (&invite=...)
+ *
+ * ✅ 关键：注册流程不再跳 /invite 页面，避免二次输入邀请码
  */
 export async function signUpWithEmail(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
-
-  // ✅ 1) 先取邀请码
-  const invite = String(formData.get("invite") ?? "").trim();
+  const inviteRaw = String(formData.get("invite") ?? "").trim();
 
   if (!email || !password) {
-    redirect(`/login?error=${enc("请输入 email 和 password")}`);
+    redirect(loginUrl({ error: "Please enter email and password." }));
   }
 
-  // ✅ 2) 必须有邀请码（没有就不让注册）
-  if (!invite) {
-    redirect(`/invite?error=${enc("需要邀请码才能注册")}`);
+  // ✅ 邀请码必须存在：直接回 /login，不要跳 /invite
+  if (!inviteRaw) {
+    redirect(loginUrl({ error: "An invite code is required to sign up." }));
   }
 
-  // ✅ 3) 先校验邀请码（不通过就直接提示）
-  const v = await validateInviteCode(invite);
+  // ✅ 校验邀请码：失败也回 /login，并把 invite 带回去（避免用户重新输入）
+  const v = await validateInviteCode(inviteRaw);
   if (!v.ok) {
-    redirect(`/invite?error=${enc(v.message)}`);
+    redirect(loginUrl({ error: v.message, invite: inviteRaw }));
   }
 
   const supabase = await createSupabaseServer();
 
-  // ✅ 4) 再注册（只注册一次！）
+  // ✅ 注册
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
   });
 
   if (error) {
-    redirect(`/login?error=${enc(error.message)}`);
+    redirect(loginUrl({ error: error.message, invite: inviteRaw }));
   }
 
-  // ✅ 5) 注册成功后：原子消耗邀请码（RPC）
-  const code = normalizeInviteCode(invite);
+  // ✅ 注册成功后：消耗邀请码（一次性）
+  const code = normalizeInviteCode(inviteRaw);
   const { error: consumeErr } = await supabase.rpc("consume_invite_code", {
     p_code: code,
   });
 
-  // 这里建议：失败就记日志，不要让用户注册失败（体验更好）
+  // 建议：消耗失败只记日志，不影响用户注册体验
   if (consumeErr) {
     console.error("consume_invite_code failed:", consumeErr);
   }
 
-  // ✅ 6) 你原来的后续逻辑（你截图里写了 email confirmation 的说明）
-  // 如果你项目里 email confirmation ON，就跳回 /login 让他去邮箱确认
-  // 否则可以直接去 /books
-  // 你原本怎么写就怎么写，这里我不乱改你项目逻辑：
-  // （保守做法：按你原来的注释继续执行）
+  // ✅ Supabase 开了邮箱验证时，data.session 会是 null
   if (!data?.session) {
-    redirect(`/login?success=${enc("注册成功！请去邮箱完成验证后再登录 🙂")}`);
+    redirect(
+      loginUrl({
+        success:
+          "Sign up successful! Please check your email (including Spam) to confirm your account, then sign in.",
+      })
+    );
   }
 
   redirect("/books");
