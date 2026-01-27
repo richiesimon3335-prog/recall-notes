@@ -15,7 +15,9 @@ export async function listBooks() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return { ok: false as const, message: error.message, data: [] as any[] };
+  if (error) {
+    return { ok: false as const, message: error.message, data: [] as any[] };
+  }
   return { ok: true as const, data };
 }
 
@@ -30,11 +32,18 @@ export async function getBook(id: string) {
     .eq("id", id)
     .single();
 
-  if (error) return { ok: false as const, message: error.message, data: null as any };
+  if (error) {
+    return { ok: false as const, message: error.message, data: null as any };
+  }
   return { ok: true as const, data };
 }
 
-export async function createBook(formData: FormData) {
+/**
+ * ✅ IMPORTANT:
+ * This function is used by <form action={createBook}>.
+ * So it MUST return void | Promise<void>.
+ */
+export async function createBook(formData: FormData): Promise<void> {
   const user = await requireUser();
   const supabase = await createSupabaseServer();
 
@@ -42,22 +51,24 @@ export async function createBook(formData: FormData) {
   const author = String(formData.get("author") || "").trim();
   const source = String(formData.get("source") || "").trim();
 
-  if (!title) return { ok: false as const, message: "Title 不能为空" };
+  if (!title) {
+    redirect(`/books?error=${encodeURIComponent("Title is required.")}`);
+  }
 
-// ✅ Daily Create Book limit (MUST be before insert)
-const usage = await bumpCreateBookUsageOrThrow({
-  supabase,
-  userId: user.id,
-});
+  // ✅ Daily Create Book limit (MUST be before insert)
+  const usage = await bumpCreateBookUsageOrThrow({
+    supabase,
+    userId: user.id,
+  });
 
-if (!usage.ok) {
-  // 用 redirect 才能让 UI 通过 URL 展示提示（和 Note 一样）
-  redirect(
-    `/books?error=${encodeURIComponent(
-      usage.message || "今日新增书籍次数已达上限（3 本），请明天再来 🙂"
-    )}`
-  );
-}
+  if (!usage.ok) {
+    redirect(
+      `/books?error=${encodeURIComponent(
+        usage.message ||
+          "You've reached today's limit (3). Please come back tomorrow 🙂"
+      )}`
+    );
+  }
 
   const { error } = await supabase.from("books").insert({
     user_id: user.id,
@@ -66,12 +77,19 @@ if (!usage.ok) {
     source: source || null,
   });
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    redirect(`/books?error=${encodeURIComponent(error.message)}`);
+  }
 
-  redirect("/books");
+  redirect("/books?success=created");
 }
 
-export async function deleteBook(id: string) {
+/**
+ * ✅ IMPORTANT:
+ * This is also commonly used by <form action={deleteBook}>.
+ * So it MUST return void | Promise<void>.
+ */
+export async function deleteBook(id: string): Promise<void> {
   const user = await requireUser();
   const supabase = await createSupabaseServer();
 
@@ -81,7 +99,9 @@ export async function deleteBook(id: string) {
     .eq("user_id", user.id)
     .eq("id", id);
 
-  if (error) return { ok: false as const, message: error.message };
+  if (error) {
+    redirect(`/books?error=${encodeURIComponent(error.message)}`);
+  }
 
-  redirect("/books");
+  redirect("/books?success=deleted");
 }
