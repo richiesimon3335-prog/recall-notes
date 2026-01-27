@@ -33,9 +33,9 @@ export default async function InvitePage({
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-12">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">邀请码 / Invite</h1>
+        <h1 className="text-2xl font-semibold">Invite</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          输入邀请码后才能注册。我们用它来控制早期测试人数 🙂
+          An invite code is required to sign up. We use it to control access during our early testing phase 🙂
         </p>
       </div>
 
