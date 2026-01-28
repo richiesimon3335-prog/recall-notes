@@ -67,7 +67,7 @@ export default async function NoteDetailPage({
         )}
 
         {n.quote ? (
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 italic">
             “{n.quote}”
           </div>
         ) : null}
