@@ -16,14 +16,9 @@ export default async function BooksPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Books, Projects, and Memories
+        <h1 className="text-xl font-semibold">Your personal knowledge space
           <span className="block text-zinc-600 font-normal"></span>
-Everything you want to remember.</h1>
-        <form action={signOut}>
-          <Button type="submit" className="bg-zinc-800">
-            Sign out
-          </Button>
-        </form>
+Organize what you read, think, and discover.</h1>
       </div>
 
       {/* ✅ 必显示：从浏览器 URL 直接读 ?error= / ?success= */}
