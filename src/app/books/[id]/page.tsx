@@ -65,7 +65,11 @@ export default async function BookDetailPage(props: {
 
       {/* 新增笔记 */}
       <Card>
-        <h2 className="font-medium text-zinc-600">Add a bookmark</h2>
+        <h2 className="font-medium text-zinc-600">Add a bookmark </h2>
+         {/* 提示文案 */}
+  <p className="mt-1 text-sm text-zinc-500 italic">
+    Create the bookmark first. You can add images later from the detail page if needed.
+  </p>
 
         <form className="mt-3 space-y-3" action={createNote}>
           <input type="hidden" name="book_id" value={id} />

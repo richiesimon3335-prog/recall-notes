@@ -33,7 +33,7 @@ export async function Navbar() {
           {user ? (
             <>
               <Link href="/books" className="hover:text-white transition-colors">
-                Books · Projects · Memories
+                Library
               </Link>
 
               <Link href="/ask" className="hover:text-white transition-colors">
