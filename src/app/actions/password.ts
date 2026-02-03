@@ -2,7 +2,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 function enc(msg: string) {
@@ -10,26 +9,15 @@ function enc(msg: string) {
 }
 
 /**
- * 尽量可靠地拿到当前站点根地址（本地/线上都可用）
- * 优先级：
- * 1) NEXT_PUBLIC_SITE_URL
- * 2) origin
- * 3) x-forwarded-host/host + x-forwarded-proto
- * 4) http://localhost:3000（最后兜底）
+ * ✅ 稳定拿到站点根地址
+ * - 线上（Vercel）：NEXT_PUBLIC_SITE_URL=https://www.recallnotes.ca
+ * - 本地：NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ *
+ * 这里不再用 headers()，避免 Vercel/Next 的类型差异导致 build fail
  */
 function getBaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (envUrl) return envUrl.replace(/\/$/, "");
-
-  const h = headers();
-
-  const origin = h.get("origin");
-  if (origin) return origin.replace(/\/$/, "");
-
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  if (host) return `${proto}://${host}`.replace(/\/$/, "");
-
   return "http://localhost:3000";
 }
 
@@ -47,8 +35,7 @@ export async function sendPasswordResetEmail(formData: FormData) {
   const supabase = await createSupabaseServer();
 
   // ✅ 用户点邮件链接后 -> /auth/callback -> 再跳到 /auth/reset
-  const baseUrl = getBaseUrl();
-  const redirectTo = `${baseUrl}/auth/callback?next=/auth/reset`;
+  const redirectTo = `${getBaseUrl()}/auth/callback?next=/auth/reset`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
@@ -73,7 +60,9 @@ export async function updatePassword(formData: FormData) {
   const confirm = String(formData.get("confirm") ?? "");
 
   if (!password || password.length < 8) {
-    redirect(`/auth/reset?error=${enc("Password must be at least 8 characters.")}`);
+    redirect(
+      `/auth/reset?error=${enc("Password must be at least 8 characters.")}`
+    );
   }
 
   if (password !== confirm) {
@@ -99,6 +88,5 @@ export async function updatePassword(formData: FormData) {
   }
 
   // ✅ 成功后留在 reset 页面显示 success
-  //（如果你更希望跳 /books 或 /login，也可以改这里）
   redirect(`/auth/reset?success=${enc("Password updated successfully.")}`);
 }
