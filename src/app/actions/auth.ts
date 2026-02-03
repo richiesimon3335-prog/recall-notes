@@ -27,19 +27,25 @@ function loginUrl(params: Record<string, string | undefined>) {
  * 2) 请求头 origin（有些场景可用）
  * 3) 请求头 host + proto（兜底）
  * 4) 最终兜底 http://localhost:3000
+ *
+ * ⚠️ 关键修复：Next 16.1.4 的 headers() 在类型里可能是 Promise，需要 await
  */
-function getBaseUrl() {
+async function getBaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (envUrl) return envUrl.replace(/\/$/, "");
 
-  const h = headers();
+  try {
+    const h = await headers();
 
-  const origin = h.get("origin");
-  if (origin) return origin.replace(/\/$/, "");
+    const origin = h.get("origin");
+    if (origin) return origin.replace(/\/$/, "");
 
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  if (host) return `${proto}://${host}`.replace(/\/$/, "");
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    if (host) return `${proto}://${host}`.replace(/\/$/, "");
+  } catch {
+    // headers() 在少数环境/调用时机可能不可用：直接走兜底
+  }
 
   return "http://localhost:3000";
 }
@@ -69,11 +75,7 @@ export async function signInWithEmail(formData: FormData) {
 
 /**
  * Sign up with email + password + invite code
- * - success (email confirmation OFF): redirect to /books
- * - success (email confirmation ON):  redirect back to /login?success=...
- * - error:                            redirect back to /login?error=... (&invite=...)
- *
- * ✅ 关键：注册流程不再跳 /invite 页面，避免二次输入邀请码
+ * ✅ 注册流程不再跳 /invite 页面，避免二次输入邀请码
  */
 export async function signUpWithEmail(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
@@ -165,7 +167,7 @@ export async function sendPasswordResetEmail(formData: FormData) {
   const supabase = await createSupabaseServer();
 
   // 用户点邮件链接后 -> /auth/callback -> 再跳到 /reset-password
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const redirectTo = `${baseUrl}/auth/callback?next=/reset-password`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -193,9 +195,7 @@ export async function updatePassword(formData: FormData) {
   const confirm = String(formData.get("confirm") || "");
 
   if (!password || password.length < 6) {
-    redirect(
-      `/reset-password?error=${enc("Password must be at least 6 characters.")}`
-    );
+    redirect(`/reset-password?error=${enc("Password must be at least 6 characters.")}`);
   }
 
   if (password !== confirm) {
