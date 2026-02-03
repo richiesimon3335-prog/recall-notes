@@ -170,7 +170,9 @@ export default function NoteContentEditor({
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Enter") return;
     if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.isComposing) return;
+    // ✅ 避免输入法（中文/日文）组合输入时误触发 Enter 逻辑
+const native = e.nativeEvent as unknown as { isComposing?: boolean; keyCode?: number };
+if (native.isComposing || native.keyCode === 229) return;
 
     const el = ref.current;
     if (!el) return;

@@ -1,75 +1,67 @@
 // src/components/Markdown.tsx
-"use client";
-
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
-export function Markdown({
-  children,
-  className,
-}: {
-  children?: string | null;
+type Props = {
+  children: string;
   className?: string;
-}) {
-  const text = typeof children === "string" ? children : "";
+};
 
+export default function Markdown({ children, className }: Props) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      className={cn("space-y-2 text-zinc-900", className)}
-      components={{
-        h1: ({ children }) => (
-          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
-            {children}
-          </h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="mt-3 text-xl font-semibold text-zinc-900">
-            {children}
-          </h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="mt-3 text-lg font-semibold text-zinc-900">
-            {children}
-          </h3>
-        ),
-        p: ({ children }) => (
-          <p className="whitespace-pre-wrap leading-relaxed">{children}</p>
-        ),
-        ul: ({ children }) => (
-          <ul className="list-disc space-y-1 pl-6">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="list-decimal space-y-1 pl-6">{children}</ol>
-        ),
-        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-        strong: ({ children }) => (
-          <strong className="font-semibold">{children}</strong>
-        ),
-        em: ({ children }) => <em className="italic">{children}</em>,
-        blockquote: ({ children }) => (
-          <blockquote className="border-l-4 border-zinc-200 pl-3 text-zinc-700">
-            {children}
-          </blockquote>
-        ),
-        code: ({ inline, children }) => {
-          if (inline) {
-            return (
-              <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm">
-                {children}
-              </code>
-            );
-          }
-          return (
-            <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-3 text-sm">
-              <code>{children}</code>
+    // ✅ 把 className 放到外层容器，避免 react-markdown 版本差异导致 TS 报错
+    <div className={cn("space-y-2 text-zinc-900", className)}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => (
+            <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
+              {children}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="mt-3 text-xl font-semibold text-zinc-900">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mt-2 text-lg font-semibold text-zinc-900">
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => <p className="leading-7">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc pl-6">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-6">{children}</ol>,
+          li: ({ children }) => <li className="my-1">{children}</li>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-4 border-zinc-300 pl-4 italic text-zinc-700">
+              {children}
+            </blockquote>
+          ),
+          a: ({ children, ...props }) => (
+            <a
+              {...props}
+              className="underline underline-offset-4 hover:text-zinc-700"
+            >
+              {children}
+            </a>
+          ),
+          code: ({ children }) => (
+            <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.95em]">
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre className="overflow-x-auto rounded bg-zinc-100 p-3">
+              {children}
             </pre>
-          );
-        },
-      }}
-    >
-      {text}
-    </ReactMarkdown>
+          ),
+          hr: () => <hr className="my-4 border-zinc-200" />,
+        }}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 }
