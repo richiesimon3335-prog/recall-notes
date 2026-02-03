@@ -7,6 +7,8 @@ import { getRelatedNotes } from "@/app/actions/noteLinks";
 import NoteImageUploader from "@/components/NoteImageUploader";
 import { listNoteImages } from "@/app/actions/noteImages";
 import NoteImageGallery from "@/components/NoteImageGallery";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default async function NoteDetailPage({
   params,
@@ -39,7 +41,15 @@ export default async function NoteDetailPage({
         </Link>
       </div>
 
-      <h1 className="text-xl font-semibold">Bookmark</h1>
+      <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Bookmark</h1>
+          <Link
+              href={`/notes/${id}/edit`}
+              className="text-sm text-zinc-600 hover:text-zinc-900 underline underline-offset-4"
+          >
+              Edit
+          </Link>
+      </div>
 
       <Card className="space-y-3">
         <div className="text-xs text-zinc-500">
@@ -72,9 +82,43 @@ export default async function NoteDetailPage({
           </div>
         ) : null}
 
-        <div className="whitespace-pre-wrap text-base text-zinc-900">
-          {n.content}
-        </div>
+        <div className="text-base text-zinc-900">
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      h1: (props) => <h1 className="mt-4 mb-2 text-2xl font-semibold" {...props} />,
+      h2: (props) => <h2 className="mt-4 mb-2 text-xl font-semibold" {...props} />,
+      h3: (props) => <h3 className="mt-3 mb-2 text-lg font-semibold" {...props} />,
+      p: (props) => <p className="mb-3 leading-7" {...props} />,
+      ul: (props) => <ul className="mb-3 list-disc pl-6" {...props} />,
+      ol: (props) => <ol className="mb-3 list-decimal pl-6" {...props} />,
+      li: (props) => <li className="mb-1" {...props} />,
+      blockquote: (props) => (
+        <blockquote
+          className="my-3 border-l-4 border-zinc-300 pl-4 italic text-zinc-700"
+          {...props}
+        />
+      ),
+      strong: (props) => <strong className="font-semibold" {...props} />,
+      em: (props) => <em className="italic" {...props} />,
+      a: (props) => (
+        <a className="underline underline-offset-4 hover:text-zinc-700" {...props} />
+      ),
+      code: (props) => (
+        <code
+          className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.95em]"
+          {...props}
+        />
+      ),
+      pre: (props) => (
+        <pre className="mb-3 overflow-x-auto rounded bg-zinc-100 p-3" {...props} />
+      ),
+      hr: (props) => <hr className="my-4 border-zinc-200" {...props} />,
+    }}
+  >
+    {String(n.content ?? "")}
+  </ReactMarkdown>
+</div>
 
         <div className="pt-2 text-xs text-zinc-600">
           Related ideas: {(n.topics ?? []).join(", ") || "—"}

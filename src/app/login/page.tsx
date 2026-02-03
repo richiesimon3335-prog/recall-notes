@@ -1,4 +1,5 @@
 // src/app/login/page.tsx
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Input } from "@/components/ui/Input";
@@ -91,6 +92,16 @@ export default async function LoginPage(props: {
             >
               Sign Up
             </Button>
+
+            {/* ✅ 忘记密码入口（放在按钮下面最符合用户视线） */}
+            <div className="pt-2 text-center text-sm">
+              <Link
+                href="/forgot-password"
+                className="text-zinc-500 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
         </form>
       </Card>

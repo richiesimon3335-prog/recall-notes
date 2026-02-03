@@ -12,7 +12,7 @@ export function Button({
       className={cn(
         "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium",
         "bg-black text-white hover:opacity-90 disabled:opacity-50",
-        "transition",
+        "transition cursor-pointer",
         className
       )}
       {...props}

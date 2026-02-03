@@ -1,12 +1,14 @@
 // src/app/books/[id]/page.tsx
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { Textarea } from "@/components/ui/Textarea";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { getBook } from "@/app/actions/books";
 import { listNotesByBook, createNote } from "@/app/actions/notes";
+import CreateNoteSubmitButton from "@/components/CreateNoteSubmitButton";
+import NoteEditor from "@/components/NoteEditor";
+import NoteContentEditor from "@/components/NoteContentEditor";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -31,7 +33,6 @@ export default async function BookDetailPage(props: {
   const bookRes = await getBook(id);
   const notesRes = await listNotesByBook(id);
 
-  // ✅ 从 URL 读取 error / success（兼容 string / string[]）
   const errorMsg = toSingleString(sp.error).trim();
   const successMsg = toSingleString(sp.success).trim();
 
@@ -48,7 +49,7 @@ export default async function BookDetailPage(props: {
         <div>
           <div className="text-sm text-zinc-500">
             <Link href="/books" className="hover:underline">
-              ← Back to Books
+              ← Back to Library
             </Link>
           </div>
           <h1 className="text-xl font-semibold">{book.title}</h1>
@@ -59,42 +60,51 @@ export default async function BookDetailPage(props: {
         </div>
       </div>
 
-      {/* ✅ 顶部提示（超限/错误会出现在这里） */}
+      {/* 顶部提示 */}
       {errorMsg && <ErrorBanner message={errorMsg} />}
-      {successMsg && <ErrorBanner message={successMsg} />}
+      {successMsg ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {successMsg}
+        </div>
+      ) : null}
 
       {/* 新增笔记 */}
       <Card>
-        <h2 className="font-medium text-zinc-600">Add a bookmark </h2>
-         {/* 提示文案 */}
-  <p className="mt-1 text-sm text-zinc-500 italic">
-    Create the bookmark first. You can add images later from the detail page if needed.
-  </p>
+        <h2 className="font-medium text-zinc-600">Add a bookmark</h2>
+
+        <p className="mt-1 text-sm text-zinc-500 italic">
+          Create the bookmark first. You can add images later from the detail
+          page if needed.
+        </p>
 
         <form className="mt-3 space-y-3" action={createNote}>
           <input type="hidden" name="book_id" value={id} />
 
           <div>
             <label className="text-sm text-zinc-900">Content（required）</label>
-            <Textarea
-              name="content"
-              required
-              maxLength={1200}
-              placeholder="Write your note..."
-              className="
-                bg-zinc-100
-                text-zinc-900
-                border border-zinc-700
-                placeholder:text-zinc-500
-                focus:border-zinc-500
-                focus:ring-0
-              "
-            />
+
+            {/* ✅ 这里用 NoteEditor：工具栏 + textarea */}
+            <NoteContentEditor
+  name="content"
+  required
+  maxLength={1200}
+  placeholder="Write your note..."
+  className="
+    bg-zinc-100
+    text-zinc-900
+    border border-zinc-700
+    placeholder:text-zinc-500
+    focus:border-zinc-500
+    focus:ring-0
+  "
+/>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <label className="text-sm text-zinc-600">Page Ref（optional）</label>
+              <label className="text-sm text-zinc-600">
+                Page Ref（optional）
+              </label>
               <Input
                 name="page_ref"
                 maxLength={40}
@@ -128,19 +138,16 @@ export default async function BookDetailPage(props: {
             </div>
           </div>
 
+          {/* 默认不勾选 */}
           <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              name="sameBookOnly"
-              defaultChecked
-              className="h-4 w-4"
-            />
-            <label className="text-sm text-zinc-700">
-              Link within this book only (Turn off to link across all books and memories.)
+            <input type="checkbox" name="sameBookOnly" className="h-4 w-4" />
+            <label className="text-sm text-zinc-500">
+              Only link within this book (By default, notes can connect across
+              your entire library.)
             </label>
           </div>
 
-          <Button type="submit">Create Note</Button>
+          <CreateNoteSubmitButton />
         </form>
       </Card>
 
@@ -166,9 +173,11 @@ export default async function BookDetailPage(props: {
                 {new Date(n.created_at).toLocaleString()}
                 {n.page_ref ? ` · ${n.page_ref}` : ""}
               </div>
+
               <div className="whitespace-pre-wrap text-sm text-zinc-600">
                 {n.content}
               </div>
+
               <div className="text-xs text-zinc-500">
                 <Link className="hover:underline" href={`/notes/${n.id}`}>
                   View note →

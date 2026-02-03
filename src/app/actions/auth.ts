@@ -1,19 +1,47 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { validateInviteCode, normalizeInviteCode } from "@/app/actions/invite";
 
+/** encodeURIComponent 的短别名 */
 function enc(msg: string) {
   return encodeURIComponent(msg);
 }
 
+/** 生成 /login?error=...&invite=... 这种 URL */
 function loginUrl(params: Record<string, string | undefined>) {
   const qs = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== "")
     .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
     .join("&");
   return qs ? `/login?${qs}` : "/login";
+}
+
+/**
+ * ✅ 尽量可靠地拿到当前站点根地址（本地/线上都可用）
+ * 优先级：
+ * 1) NEXT_PUBLIC_SITE_URL（你本地 .env.local = http://localhost:3000；Vercel = https://www.recallnotes.ca）
+ * 2) 请求头 origin（有些场景可用）
+ * 3) 请求头 host + proto（兜底）
+ * 4) 最终兜底 http://localhost:3000
+ */
+function getBaseUrl() {
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (envUrl) return envUrl.replace(/\/$/, "");
+
+  const h = headers();
+
+  const origin = h.get("origin");
+  if (origin) return origin.replace(/\/$/, "");
+
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  if (host) return `${proto}://${host}`.replace(/\/$/, "");
+
+  return "http://localhost:3000";
 }
 
 /**
@@ -33,7 +61,6 @@ export async function signInWithEmail(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // 这里显示 Supabase 返回的信息，例如 Invalid login credentials
     redirect(loginUrl({ error: error.message }));
   }
 
@@ -57,12 +84,10 @@ export async function signUpWithEmail(formData: FormData) {
     redirect(loginUrl({ error: "Please enter email and password." }));
   }
 
-  // ✅ 邀请码必须存在：直接回 /login，不要跳 /invite
   if (!inviteRaw) {
     redirect(loginUrl({ error: "An invite code is required to sign up." }));
   }
 
-  // ✅ 校验邀请码：失败也回 /login，并把 invite 带回去（避免用户重新输入）
   const v = await validateInviteCode(inviteRaw);
   if (!v.ok) {
     redirect(loginUrl({ error: v.message, invite: inviteRaw }));
@@ -70,7 +95,6 @@ export async function signUpWithEmail(formData: FormData) {
 
   const supabase = await createSupabaseServer();
 
-  // ✅ 注册
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -80,18 +104,18 @@ export async function signUpWithEmail(formData: FormData) {
     redirect(loginUrl({ error: error.message, invite: inviteRaw }));
   }
 
-  // ✅ 注册成功后：消耗邀请码（一次性）
+  // ✅ 注册成功后消耗邀请码（一次性）
   const code = normalizeInviteCode(inviteRaw);
   const { error: consumeErr } = await supabase.rpc("consume_invite_code", {
     p_code: code,
   });
 
-  // 建议：消耗失败只记日志，不影响用户注册体验
+  // 消耗失败不阻断注册
   if (consumeErr) {
     console.error("consume_invite_code failed:", consumeErr);
   }
 
-  // ✅ Supabase 开了邮箱验证时，data.session 会是 null
+  // ✅ 开启邮箱验证时 data.session 为空
   if (!data?.session) {
     redirect(
       loginUrl({
@@ -125,4 +149,65 @@ export async function requireUser() {
   }
 
   return data.user;
+}
+
+/**
+ * Send password reset email
+ * - success: redirect back to /forgot-password?success=...
+ * - error:   redirect back to /forgot-password?error=...
+ */
+export async function sendPasswordResetEmail(formData: FormData) {
+  const email = String(formData.get("email") || "").trim();
+  if (!email) {
+    redirect(`/forgot-password?error=${enc("Please enter your email.")}`);
+  }
+
+  const supabase = await createSupabaseServer();
+
+  // 用户点邮件链接后 -> /auth/callback -> 再跳到 /reset-password
+  const baseUrl = getBaseUrl();
+  const redirectTo = `${baseUrl}/auth/callback?next=/reset-password`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+
+  if (error) {
+    redirect(`/forgot-password?error=${enc(error.message)}`);
+  }
+
+  redirect(
+    `/forgot-password?success=${enc(
+      "If this email exists, we’ve sent a password reset link. Please check your inbox (and spam)."
+    )}`
+  );
+}
+
+/**
+ * Update password (user must already have a valid recovery session)
+ * - success: redirect to /books?success=...
+ * - error:   redirect back to /reset-password?error=...
+ */
+export async function updatePassword(formData: FormData) {
+  const password = String(formData.get("password") || "");
+  const confirm = String(formData.get("confirm") || "");
+
+  if (!password || password.length < 6) {
+    redirect(
+      `/reset-password?error=${enc("Password must be at least 6 characters.")}`
+    );
+  }
+
+  if (password !== confirm) {
+    redirect(`/reset-password?error=${enc("Passwords do not match.")}`);
+  }
+
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    redirect(`/reset-password?error=${enc(error.message)}`);
+  }
+
+  redirect(`/books?success=${enc("Password updated successfully.")}`);
 }

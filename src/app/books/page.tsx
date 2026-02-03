@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ClientFlash } from "@/components/ui/ClientFlash";
 import { listBooks, createBook, deleteBook } from "@/app/actions/books";
-import { signOut } from "@/app/actions/auth";
 
 export default async function BooksPage() {
   const res = await listBooks();
@@ -16,9 +15,12 @@ export default async function BooksPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Your personal knowledge space
-          <span className="block text-zinc-600 font-normal"></span>
-Organize what you read, think, and discover.</h1>
+        <h1 className="text-xl font-semibold">
+          Your personal knowledge space
+          <span className="block text-zinc-600 font-normal">
+            Organize what you read, think, and discover.
+          </span>
+        </h1>
       </div>
 
       {/* ✅ 必显示：从浏览器 URL 直接读 ?error= / ?success= */}
@@ -41,15 +43,14 @@ Organize what you read, think, and discover.</h1>
       <div className="grid gap-3">
         {res.ok && res.data.length === 0 && (
           <Card>
-            <p className="text-sm text-zinc-600">
-              No books yet. Create your first book.
-            </p>
+            <p className="text-sm text-zinc-600">No books yet. Create your first book.</p>
           </Card>
         )}
 
         {res.ok &&
           res.data.map((b: any) => (
             <Card key={b.id} className="flex items-center justify-between">
+              {/* 左侧：标题与作者 */}
               <div>
                 <Link
                   className="font-medium text-zinc-600 hover:underline"
@@ -58,20 +59,29 @@ Organize what you read, think, and discover.</h1>
                   {b.title}
                 </Link>
                 <div className="text-xs text-zinc-500">
-                  {b.author ? `by ${b.author}` : "—"}{" "}
-                  {b.source ? `· ${b.source}` : ""}
+                  {b.author ? `by ${b.author}` : "—"} {b.source ? `· ${b.source}` : ""}
                 </div>
               </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await deleteBook(b.id);
-                }}
-              >
-                <Button type="submit" className="bg-zinc-900">
-                  Delete
-                </Button>
-              </form>
+
+              {/* 右侧：Open + Delete */}
+              <div className="flex items-center gap-2">
+                <Link href={`/books/${b.id}`} className="inline-flex">
+                  <Button type="button" variant="secondary">
+                    Enter
+                  </Button>
+                </Link>
+
+                <form
+                  action={async () => {
+                    "use server";
+                    await deleteBook(b.id);
+                  }}
+                >
+                  <Button type="submit" className="bg-zinc-900">
+                    Delete
+                  </Button>
+                </form>
+              </div>
             </Card>
           ))}
       </div>
